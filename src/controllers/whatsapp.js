@@ -1,13 +1,21 @@
 const whatsapp = require("../services/whatsapp");
+const paypalService = require("../services/paypal");
+
 const userService = require("../services/user");
 const transcriptionService = require("../services/transcription");
 
-class WebhookController {
+class WhatsAppController {
   async verifyWebhook(req, res) {
     try {
       const mode = req.query["hub.mode"];
       const token = req.query["hub.verify_token"];
       const challenge = req.query["hub.challenge"];
+
+      console.log("Received webhook verification request:", {
+        mode,
+        token,
+        challenge,
+      });
 
       const response = whatsapp.verifyWebhook(mode, token, challenge);
       res.status(200).send(response);
@@ -20,23 +28,17 @@ class WebhookController {
   async handleMessage(req, res) {
     try {
       const { body } = req;
-      console.log("Received webhook body:", JSON.stringify(body, null, 2));
-
       if (!this.isValidMessageRequest(body)) {
-        return res.sendStatus(404);
+        return res.sendStatus(200);
       }
 
       const messageData = this.extractMessageData(body);
-      console.log(
-        "Extracted message data:",
-        JSON.stringify(messageData, null, 2)
-      );
+
+      console.log("Received Message: ", messageData.text);
+      console.log("Message From: ", messageData.from);
 
       // Handle status updates
       if (messageData.type === "status") {
-        console.log(
-          `Message ${messageData.messageId} status: ${messageData.status}`
-        );
         return res.sendStatus(200);
       }
 
@@ -45,10 +47,7 @@ class WebhookController {
 
       // Handle different message types
       if (messageData.text && messageData.text.startsWith("/status")) {
-        const status = await userService.getUserStatus(messageData.from);
-        const lastActivity = status.lastInteraction
-          ? new Date(status.lastInteraction).toLocaleDateString()
-          : "No activity yet";
+        const status = await userService.getUserStatus(user);
 
         const statusMessage = [
           "📊 Your Status",
@@ -59,12 +58,12 @@ class WebhookController {
           }`,
           `📝 Detail Level: ${status.summaryDetailLevel}`,
           `📈 Total Summaries Used: ${status.totalSummariesUsed}`,
-          `📅 Last Activity: ${lastActivity}`,
           "",
           "Commands:",
           "• /status - View your status",
           "• /detail [brief|normal|detailed] - Set summary detail level",
-          "• /subscribe - Toggle between free and premium plan",
+          "• /subscribe - Subscribe to Premium",
+          "• /unsubscribe - Unsubscribe from Premium",
         ].join("\n");
 
         await whatsapp.sendMessage(
@@ -77,18 +76,53 @@ class WebhookController {
 
       if (messageData.text && messageData.text.startsWith("/subscribe")) {
         try {
-          const result = await userService.initiateSubscription(
-            messageData.from
-          );
+          if (user.isSubscribed) {
+            await whatsapp.sendMessage(
+              messageData.from,
+              "You are already subscribed to Premium.",
+              messageData.phoneNumberId
+            );
+            return res.sendStatus(200);
+          }
+          const result = await userService.initiateSubscription(user);
           await whatsapp.sendMessage(
             messageData.from,
             result.message,
             messageData.phoneNumberId
           );
         } catch (error) {
+          console.error("Error initiating subscription:", error);
           await whatsapp.sendMessage(
             messageData.from,
             "Sorry, there was an error creating your subscription link. Please try again later.",
+            messageData.phoneNumberId
+          );
+        }
+        return res.sendStatus(200);
+      }
+
+      if (messageData.text && messageData.text.startsWith("/unsubscribe")) {
+        try {
+          if (!user.isSubscribed) {
+            await whatsapp.sendMessage(
+              messageData.from,
+              "You are not currently subscribed to Premium.",
+              messageData.phoneNumberId
+            );
+            return res.sendStatus(200);
+          }
+          await paypalService.cancelSubscription(user);
+          await userService.cancelSubscription(user);
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Subscription cancelled. You now have the free plan with limited summaries.",
+            messageData.phoneNumberId
+          );
+        } catch (error) {
+          console.error("Error canceling subscription:", error);
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Sorry, there was an error canceling your subscription. Please try again later.",
             messageData.phoneNumberId
           );
         }
@@ -109,16 +143,14 @@ class WebhookController {
         } else {
           try {
             const level = args[1].toLowerCase();
-            const result = await userService.setSummaryDetailLevel(
-              messageData.from,
-              level
-            );
+            const result = await userService.setSummaryDetailLevel(user, level);
             await whatsapp.sendMessage(
               messageData.from,
               result.message,
               messageData.phoneNumberId
             );
           } catch (error) {
+            console.error("Error setting detail level:", error);
             await whatsapp.sendMessage(
               messageData.from,
               "Invalid detail level. Please use: brief, normal, or detailed",
@@ -130,9 +162,7 @@ class WebhookController {
       }
 
       if (messageData.type === "audio" || messageData.type === "voice") {
-        const availability = await userService.checkSummaryAvailability(
-          messageData.from
-        );
+        const availability = await userService.checkSummaryAvailability(user);
 
         if (!availability.hasFreeSummaries) {
           await whatsapp.sendMessage(
@@ -159,20 +189,27 @@ class WebhookController {
           messageData.phoneNumberId
         );
 
-        const preferences = await userService.getUserPreferences(
-          messageData.from
-        );
-        const summary = await transcriptionService.transcribeWhatsAppAudio(
-          mediaId,
-          preferences.summaryDetailLevel
-        );
+        try {
+          const preferences = await userService.getUserPreferences(user);
+          const summary = await transcriptionService.transcribeWhatsAppAudio(
+            mediaId,
+            preferences.summaryDetailLevel
+          );
 
-        await userService.useSummary(messageData.from);
-        await whatsapp.sendMessage(
-          messageData.from,
-          summary,
-          messageData.phoneNumberId
-        );
+          await userService.useSummary(user);
+          await whatsapp.sendMessage(
+            messageData.from,
+            summary,
+            messageData.phoneNumberId
+          );
+        } catch (error) {
+          console.error("Error processing audio message:", error);
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Sorry, I encountered an error while processing your voice message. Please try again.",
+            messageData.phoneNumberId
+          );
+        }
       } else {
         await whatsapp.sendMessage(
           messageData.from,
@@ -192,29 +229,24 @@ class WebhookController {
   }
 
   isValidMessageRequest(body) {
-    return (
-      body &&
-      body.object === "whatsapp_business_account" &&
-      body.entry &&
-      body.entry[0] &&
-      body.entry[0].changes &&
-      body.entry[0].changes[0] &&
-      body.entry[0].changes[0].value &&
-      body.entry[0].changes[0].value.messages
-    );
+    // Check if it's a WhatsApp message webhook
+    if (body?.object !== "whatsapp_business_account") {
+      return false;
+    }
+
+    // Get the messages array using optional chaining
+    const messages = body.entry?.[0]?.changes?.[0]?.value?.messages;
+
+    // Check if messages exists and is a non-empty array
+    return Array.isArray(messages) && messages.length > 0;
   }
 
   extractMessageData(body) {
     const change = body.entry[0].changes[0];
-    const message = change.value.messages[0];
-    const status = change.value.statuses?.[0];
+    const message = change.value.messages?.[0];
 
-    if (status) {
-      return {
-        type: "status",
-        messageId: status.id,
-        status: status.status,
-      };
+    if (!message) {
+      throw new Error("No message found in webhook payload");
     }
 
     return {
@@ -228,4 +260,4 @@ class WebhookController {
   }
 }
 
-module.exports = WebhookController;
+module.exports = new WhatsAppController();

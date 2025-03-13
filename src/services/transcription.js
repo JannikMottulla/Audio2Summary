@@ -179,19 +179,24 @@ class TranscriptionService {
 
   async transcribeWhatsAppAudio(mediaId, detailLevel = "normal") {
     try {
-      console.log("Starting WhatsApp audio transcription process");
+      console.log("Starting transcription process for media ID:", mediaId);
+
+      // Download the audio file
       const audioBuffer = await this.downloadAudio(mediaId);
+
+      // Transcribe the audio
       const transcription = await this.transcribeAudio(audioBuffer);
+      console.log("Transcription completed:", transcription);
+
+      // Get the summary
       const summaryResult = await this.summarizeText(
         transcription,
         detailLevel
       );
-      console.log("WhatsApp audio processing completed successfully");
-      return {
-        transcription,
-        summary: summaryResult.summary,
-        language: summaryResult.language,
-      };
+      console.log("Summary generated:", summaryResult);
+
+      // Format the response
+      return `📝 *Voice Message Summary*\n\n${summaryResult.summary}`;
     } catch (error) {
       console.error("Error in transcribeWhatsAppAudio:", error);
       throw error;

@@ -6,33 +6,41 @@ const config = {
     token: process.env.WHATSAPP_TOKEN,
     verifyToken: process.env.VERIFY_TOKEN,
     phoneNumberId: process.env.PHONE_NUMBER_ID,
-    apiVersion: process.env.API_VERSION || "v17.0",
-  },
-  mongodb: {
-    uri:
-      process.env.MONGODB_URI || "mongodb://localhost:27017/whatsapp-summary",
-    options: {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    },
+    apiVersion: "v22.0",
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY,
   },
+  paypal: {
+    clientId: process.env.PAYPAL_CLIENT_ID,
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET,
+    webhookId: process.env.PAYPAL_WEBHOOK_ID,
+    productId: process.env.PAYPAL_PRODUCT_ID,
+    planId: process.env.PAYPAL_PLAN_ID,
+    apiUrl: process.env.PAYPAL_API_URL || "https://api-m.sandbox.paypal.com",
+  },
+  appUrl: process.env.APP_URL || "http://localhost:3000",
 };
 
 // Validate required environment variables
-const requiredEnvVars = [
+const requiredVars = [
   "WHATSAPP_TOKEN",
   "VERIFY_TOKEN",
   "PHONE_NUMBER_ID",
-  "API_VERSION",
+  "OPENAI_API_KEY",
+  "PAYPAL_CLIENT_ID",
+  "PAYPAL_CLIENT_SECRET",
+  "PAYPAL_WEBHOOK_ID",
+  "PAYPAL_PRODUCT_ID",
+  "PAYPAL_PLAN_ID",
+  "APP_URL",
 ];
-const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
-if (missingEnvVars.length > 0) {
+const missingVars = requiredVars.filter((varName) => !process.env[varName]);
+
+if (missingVars.length > 0) {
   throw new Error(
-    `Missing required environment variables: ${missingEnvVars.join(", ")}`
+    `Missing required environment variables: ${missingVars.join(", ")}`
   );
 }
 

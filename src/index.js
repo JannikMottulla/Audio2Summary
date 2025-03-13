@@ -1,40 +1,31 @@
 const express = require("express");
-const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
 const config = require("./config");
-const database = require("./services/database");
-const webhookController = require("./controllers/webhook");
+const webhookRoutes = require("./routes/webhooks");
 
 const app = express();
+app.use(express.json());
 
-// Middleware
-app.use(bodyParser.json());
-
-// Health check endpoint
-app.get("/", (req, res) => {
-  res.status(200).json({ status: "Server is running" });
-});
-
-// WhatsApp webhook routes
-app.get("/webhook", webhookController.verifyWebhook.bind(webhookController));
-app.post("/webhook", webhookController.handleMessage.bind(webhookController));
+// Mount routes
+app.use("/webhooks", webhookRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
+  console.error(err.stack);
+  res.status(500).json({ error: "Server error" });
 });
 
-// Initialize database and start server
-async function startServer() {
-  try {
-    await database.connect();
+// Connect to MongoDB and start server
+mongoose
+  .connect(
+    process.env.MONGODB_URI || "mongodb://localhost:27017/whatsapp-summary"
+  )
+  .then(() => {
     app.listen(config.port, () => {
-      console.log(`Server is running on port ${config.port}`);
+      console.log(`Server running on port ${config.port}`);
     });
-  } catch (error) {
-    console.error("Failed to start server:", error);
+  })
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB:", err);
     process.exit(1);
-  }
-}
-
-startServer();
+  });

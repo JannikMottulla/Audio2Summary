@@ -1,25 +1,25 @@
 {
   "name": "whatsapp-audio-summary",
   "version": "1.0.0",
-  "description": "A Node.js application to respond to WhatsApp messages",
+  "description": "WhatsApp Audio Summary Service",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "start": "node src/scripts/migrate-schema.js && node src/index.js",
+    "dev": "nodemon src/index.js",
+    "setup-paypal": "node src/scripts/setup-paypal.js",
+    "clear-db": "node src/scripts/clear-db.js",
+    "migrate": "node src/scripts/migrate-schema.js"
   },
   "dependencies": {
-    "axios": "^1.8.3",
-    "body-parser": "^1.20.3",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "form-data": "^4.0.2",
-    "mongoose": "^8.12.1",
-    "openai": "^4.87.3"
+    "axios": "^1.6.7",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "form-data": "^4.0.0",
+    "mongoose": "^8.1.1",
+    "openai": "^4.28.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+    "nodemon": "^3.0.1"
+  }
 }

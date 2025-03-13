@@ -14,6 +14,10 @@ class WhatsAppService {
       const url = `${this.baseUrl}/${phoneNumberId}/messages?access_token=${this.token}`;
       console.log("Using WhatsApp API URL:", url);
 
+      // Ensure text is a string
+      const messageText =
+        typeof text === "object" ? JSON.stringify(text) : String(text);
+
       const response = await axios({
         method: "POST",
         url: url,
@@ -21,7 +25,10 @@ class WhatsAppService {
           messaging_product: "whatsapp",
           to: to,
           type: "text",
-          text: { body: text },
+          text: {
+            body: messageText,
+            preview_url: false,
+          },
         },
         headers: {
           "Content-Type": "application/json",
@@ -49,7 +56,7 @@ class WhatsAppService {
       return challenge;
     }
 
-    throw new Error("Webhook verification failed");
+    throw new Error("Invalid webhook verification token");
   }
 }
 
