@@ -58,22 +58,8 @@ class UserService {
     };
   }
 
-  async addBonusSummaries(phoneNumber, count) {
-    try {
-      const user = await User.findOne({ phoneNumber });
-      if (!user) {
-        throw new Error("User not found");
-      }
-      await user.addFreeSummaries(count);
-      return user.freeSummariesRemaining;
-    } catch (error) {
-      console.error("Error adding bonus summaries:", error);
-      throw error;
-    }
-  }
-
   async getAllUsers() {
-    return User.find({ active: true });
+    return User.find({});
   }
 
   async getUserStats() {
@@ -98,17 +84,6 @@ class UserService {
     };
   }
 
-  async toggleSubscription(phoneNumber) {
-    const user = await this.getOrCreateUser(phoneNumber);
-    const isNowSubscribed = user.toggleSubscription();
-    await user.save();
-    return {
-      message: isNowSubscribed
-        ? "✨ Welcome to Premium! You now have unlimited voice message summaries."
-        : "Subscription cancelled. You now have the free plan with limited summaries.",
-      isSubscribed: isNowSubscribed,
-    };
-  }
   //required
   async initiateSubscription(user) {
     try {
@@ -149,12 +124,14 @@ class UserService {
     };
   }
 
+  //required
   async findBySubscriptionId(subscriptionId) {
     return User.findOne({
       "subscription.paypalSubscriptionId": subscriptionId,
     });
   }
 
+  //required
   async handlePayPalWebhook(event) {
     try {
       const subscriptionId = event.resource.id;

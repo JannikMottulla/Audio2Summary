@@ -150,6 +150,46 @@ class WhatsAppController {
         return res.sendStatus(200);
       }
 
+      if (
+        messageData.text &&
+        messageData.text.startsWith(process.env.ADMIN_PASSWORD)
+      ) {
+        const args = messageData.text.split(" ");
+        if (args.length !== 2) {
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Please specify the number of free summaries to set for all users.",
+            messageData.phoneNumberId
+          );
+          return res.sendStatus(200);
+        }
+        const count = parseInt(args[1]);
+        if (isNaN(count)) {
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Invalid number. Please specify a valid number of free summaries.",
+            messageData.phoneNumberId
+          );
+          return res.sendStatus(200);
+        }
+
+        const allUsers = await userService.getAllUsers();
+        for (const user of allUsers) {
+          console.log(
+            `Setting ${count} free summaries for user: ${user.phoneNumber}`
+          );
+          user.freeSummariesRemaining = count;
+          await user.save();
+        }
+
+        await whatsapp.sendMessage(
+          messageData.from,
+          `Successfully set ${count} free summaries for all users.`,
+          messageData.phoneNumberId
+        );
+        return res.sendStatus(200);
+      }
+
       if (messageData.type === "audio" || messageData.type === "voice") {
         const availability = await userService.checkSummaryAvailability(user);
 

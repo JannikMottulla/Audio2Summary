@@ -3,6 +3,7 @@ const userService = require("../services/user");
 const whatsapp = require("../services/whatsapp");
 
 class PayPalController {
+  //required
   async handleWebhook(req, res) {
     try {
       const isValid = await paypalService.verifyWebhookSignature(
@@ -17,7 +18,6 @@ class PayPalController {
 
       await userService.handlePayPalWebhook(req.body);
 
-      // Send notification to user if phone number is available
       const user = await userService.findBySubscriptionId(req.body.resource.id);
       if (user) {
         const status = req.body.event_type;
@@ -43,17 +43,21 @@ class PayPalController {
         }
 
         if (message) {
-          await whatsapp.sendMessage(user.phoneNumber, message);
+          await whatsapp.sendMessage(
+            user.phoneNumber,
+            message,
+            process.env.PHONE_NUMBER_ID
+          );
         }
       }
 
       res.sendStatus(200);
     } catch (error) {
-      console.error("Error handling PayPal webhook:", error);
       res.sendStatus(500);
     }
   }
 
+  //required
   async handleSuccess(req, res) {
     try {
       const { phone, subscription_id } = req.query;
@@ -78,10 +82,10 @@ class PayPalController {
     }
   }
 
+  //required
   async handleCancel(req, res) {
     try {
       const { phone } = req.query;
-      const user = await userService.getOrCreateUser(phone);
 
       res.send("Payment process cancelled.");
       await whatsapp.sendMessage(

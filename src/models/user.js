@@ -91,6 +91,10 @@ userSchema.methods = {
     }
     return this.save();
   },
+  setFreeSummariesForUser(count) {
+    this.freeSummariesRemaining = count;
+    return this.save();
+  },
 };
 
 module.exports = mongoose.model("User", userSchema);
