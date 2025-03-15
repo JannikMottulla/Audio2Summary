@@ -11,12 +11,6 @@ class WhatsAppController {
       const token = req.query["hub.verify_token"];
       const challenge = req.query["hub.challenge"];
 
-      console.log("Received webhook verification request:", {
-        mode,
-        token,
-        challenge,
-      });
-
       const response = whatsapp.verifyWebhook(mode, token, challenge);
       res.status(200).send(response);
     } catch (error) {
@@ -33,9 +27,6 @@ class WhatsAppController {
       }
 
       const messageData = this.extractMessageData(body);
-
-      console.log("Received Message: ", messageData.text);
-      console.log("Message From: ", messageData.from);
 
       // Handle status updates
       if (messageData.type === "status") {
@@ -56,12 +47,12 @@ class WhatsAppController {
           `🎁 Free Summaries: ${
             status.isSubscribed ? "Unlimited" : status.freeSummariesRemaining
           }`,
-          `📝 Detail Level: ${status.summaryDetailLevel}`,
+          `📝 Current Mode: ${status.mode}`,
           `📈 Total Summaries Used: ${status.totalSummariesUsed}`,
           "",
           "Commands:",
           "• /status - View your status",
-          "• /detail [brief|normal|detailed] - Set summary detail level",
+          "• /mode [default | summary] - Set mode to receive either a word by word transcription or a summary of the voice message",
           "• /subscribe - Subscribe to Premium",
           "• /unsubscribe - Unsubscribe from Premium",
         ].join("\n");
@@ -129,31 +120,29 @@ class WhatsAppController {
         return res.sendStatus(200);
       }
 
-      if (messageData.text && messageData.text.startsWith("/detail")) {
+      if (messageData.text && messageData.text.startsWith("/mode")) {
         const args = messageData.text.split(" ");
         if (args.length !== 2) {
           await whatsapp.sendMessage(
             messageData.from,
-            "Please specify a detail level: /detail [brief|normal|detailed]\n\n" +
-              "• brief - Very concise, 1-2 sentences\n" +
-              "• normal - Balanced summary with key points\n" +
-              "• detailed - Comprehensive with supporting details",
+            "Please specify if you want to transcribe your message or summarize it: /mode [default | summary]\n\n" +
+              "• default - word by word transcription \n" +
+              "• summary - wummerized with key details \n",
             messageData.phoneNumberId
           );
         } else {
           try {
-            const level = args[1].toLowerCase();
-            const result = await userService.setSummaryDetailLevel(user, level);
+            const mode = args[1].toLowerCase();
+            const result = await userService.setMode(user, mode);
             await whatsapp.sendMessage(
               messageData.from,
               result.message,
               messageData.phoneNumberId
             );
           } catch (error) {
-            console.error("Error setting detail level:", error);
             await whatsapp.sendMessage(
               messageData.from,
-              "Invalid detail level. Please use: brief, normal, or detailed",
+              "Invalid mode. Please use: default or summary",
               messageData.phoneNumberId
             );
           }
@@ -190,10 +179,10 @@ class WhatsAppController {
         );
 
         try {
-          const preferences = await userService.getUserPreferences(user);
+          const preferences = await userService.getUserMode(user);
           const summary = await transcriptionService.transcribeWhatsAppAudio(
             mediaId,
-            preferences.summaryDetailLevel
+            preferences.mode
           );
 
           await userService.useSummary(user);
@@ -214,9 +203,11 @@ class WhatsAppController {
         await whatsapp.sendMessage(
           messageData.from,
           "Please send a voice message for me to summarize, or use one of these commands:\n" +
-            "• /status - View your status\n" +
-            "• /detail [brief|normal|detailed] - Set summary detail level\n" +
-            "• /subscribe - Toggle between free and premium plan",
+            "• /status - View your status \n" +
+            "• /mode [default | summary] - Set mode to receive either a word by word transcription or a summary of the voice message" +
+            "• /subscribe - Receive a subscription link \n" +
+            "• /unsubscribe - Cancel your subscription any time",
+
           messageData.phoneNumberId
         );
       }

@@ -19,10 +19,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  summaryDetailLevel: {
+  mode: {
     type: String,
-    enum: ["brief", "normal", "detailed"],
-    default: "normal",
+    enum: ["default", "summary"],
+    default: "default",
   },
   isSubscribed: {
     type: Boolean,

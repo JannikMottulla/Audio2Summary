@@ -66,25 +66,15 @@ class TranscriptionService {
 
   async transcribeAudio(audioBuffer) {
     try {
-      console.log(
-        "Preparing to transcribe audio, buffer size:",
-        audioBuffer.length
-      );
-
       // Convert buffer to file using OpenAI's utility
       const file = await toFile(audioBuffer, "audio.ogg");
 
-      console.log("Sending request to OpenAI Whisper API");
       const transcription = await this.openai.audio.transcriptions.create({
         file: file,
         model: "whisper-1",
         response_format: "text",
       });
 
-      console.log(
-        "Transcription successful:",
-        transcription.substring(0, 50) + "..."
-      );
       return transcription;
     } catch (error) {
       console.error("Error transcribing audio:", {
@@ -97,13 +87,8 @@ class TranscriptionService {
     }
   }
 
-  async summarizeText(text, detailLevel = "normal") {
+  async summarizeText(text) {
     try {
-      console.log(
-        "Generating summary for text:",
-        text.substring(0, 50) + "..."
-      );
-
       // First, detect the language
       const languageResponse = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -124,26 +109,10 @@ class TranscriptionService {
 
       const detectedLanguage =
         languageResponse.choices[0].message.content.trim();
-      console.log("Detected language:", detectedLanguage);
 
       // Generate system message based on detected language and detail level
       let systemMessage =
-        "You are a helpful assistant that provides voice message summaries. ";
-
-      // Add detail level instructions
-      switch (detailLevel) {
-        case "brief":
-          systemMessage +=
-            "Provide very concise summaries focusing only on the most important points. Keep it to 1-2 sentences maximum.";
-          break;
-        case "detailed":
-          systemMessage +=
-            "Provide detailed summaries that capture main points and supporting details. Include context and nuance while maintaining clarity.";
-          break;
-        default: // 'normal'
-          systemMessage +=
-            "Provide balanced summaries that capture the main points while keeping it concise. Include key details but avoid excessive length.";
-      }
+        "You are an assistant that summarizes voice messages. Stay concise and to the point.";
 
       if (detectedLanguage !== "en") {
         systemMessage += ` Provide the summary in ${detectedLanguage} language.`;
@@ -161,12 +130,11 @@ class TranscriptionService {
             content: `Please summarize this voice message:\n\n${text}`,
           },
         ],
-        temperature: 0.7,
-        max_tokens: detailLevel === "detailed" ? 250 : 150,
+        temperature: 0.9,
+        max_tokens: 200,
       });
 
       const summary = response.choices[0].message.content;
-      console.log("Summary generated:", summary);
       return {
         summary,
         language: detectedLanguage,
@@ -177,26 +145,24 @@ class TranscriptionService {
     }
   }
 
-  async transcribeWhatsAppAudio(mediaId, detailLevel = "normal") {
+  async transcribeWhatsAppAudio(mediaId, mode = "default") {
     try {
-      console.log("Starting transcription process for media ID:", mediaId);
-
       // Download the audio file
       const audioBuffer = await this.downloadAudio(mediaId);
 
       // Transcribe the audio
       const transcription = await this.transcribeAudio(audioBuffer);
-      console.log("Transcription completed:", transcription);
 
-      // Get the summary
-      const summaryResult = await this.summarizeText(
-        transcription,
-        detailLevel
-      );
-      console.log("Summary generated:", summaryResult);
-
-      // Format the response
-      return `📝 *Voice Message Summary*\n\n${summaryResult.summary}`;
+      if (mode === "summary") {
+        // Get the summary
+        const summaryResult = await this.summarizeText(
+          transcription,
+          detailLevel
+        );
+        return `📝 *Voice Message Summary*\n\n${summaryResult.summary}`;
+      } else {
+        return `📝 *Voice Message Transcription*\n\n${transcription}`;
+      }
     } catch (error) {
       console.error("Error in transcribeWhatsAppAudio:", error);
       throw error;

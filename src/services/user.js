@@ -10,11 +10,12 @@ class UserService {
     return user;
   }
 
+  //required
   async getUserStatus(user) {
     return {
       freeSummariesRemaining: user.freeSummariesRemaining,
       totalSummariesUsed: user.totalSummariesUsed,
-      summaryDetailLevel: user.summaryDetailLevel,
+      mode: user.mode,
       lastInteraction: user.lastInteraction,
       isSubscribed: user.isSubscribed,
       planType: user.isSubscribed ? "🌟 Premium" : "Free Plan",
@@ -22,12 +23,14 @@ class UserService {
     };
   }
 
+  //required
   async checkSummaryAvailability(user) {
     return {
       hasFreeSummaries: user.hasFreeSummaries(),
     };
   }
 
+  //required
   async useSummary(user) {
     if (!user.hasFreeSummaries()) {
       throw new Error("No free summaries remaining");
@@ -35,21 +38,23 @@ class UserService {
     return await user.useSummary();
   }
 
-  async setSummaryDetailLevel(user, level) {
-    if (!["brief", "normal", "detailed"].includes(level)) {
+  //required
+  async setMode(user, mode) {
+    if (!["default", "summmary"].includes(mode)) {
       throw new Error("Invalid detail level");
     }
-    user.summaryDetailLevel = level;
+    user.mode = mode;
     await user.save();
 
     return {
-      message: `Summary detail level set to: ${level}`,
+      message: `Mode set to: ${mode}`,
     };
   }
 
-  async getUserPreferences(user) {
+  //required
+  async getUserMode(user) {
     return {
-      summaryDetailLevel: user.summaryDetailLevel,
+      mode: user.mode,
     };
   }
 
@@ -104,12 +109,9 @@ class UserService {
       isSubscribed: isNowSubscribed,
     };
   }
-
+  //required
   async initiateSubscription(user) {
     try {
-      console.log(
-        `Creating subscription link for phone number: ${user.phoneNumber}`
-      );
       let subscriptionId;
       let approvalUrl;
 
@@ -125,28 +127,20 @@ class UserService {
         approvalUrl = result.approvalUrl;
       }
 
-      console.log(
-        `Got subscription ID: ${subscriptionId} and approval URL: ${approvalUrl}`
-      );
-
-      console.log(`Found/Created user with phone number: ${user.phoneNumber}`);
-
       await user.setSubscription(subscriptionId, approvalUrl, "PENDING");
-      console.log(`Updated user subscription status to PENDING`);
 
       return {
         message:
           "🌟 Click the link below to subscribe to Premium:\n\n" + approvalUrl,
       };
     } catch (error) {
-      console.error("Error initiating subscription:", error.message);
-      console.error("Full error:", error);
       throw new Error(
         "Failed to create subscription link. Please try again later."
       );
     }
   }
 
+  //required
   async cancelSubscription(user) {
     await user.cancelSubscription();
     return {

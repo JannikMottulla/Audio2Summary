@@ -13,7 +13,7 @@ router.post(
   whatsappController.handleMessage.bind(whatsappController)
 );
 
-// PayPal webhook route
+// PayPal webhook routes
 router.post("/paypal", paypalController.handleWebhook.bind(paypalController));
 
 // PayPal success and cancel routes
