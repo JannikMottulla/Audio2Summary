@@ -20,6 +20,9 @@ class UserService {
       isSubscribed: user.isSubscribed,
       planType: user.isSubscribed ? "🌟 Premium" : "Free Plan",
       subscription: user.subscription,
+      referralCode: user.referralCode,
+      referralLink: `https://wa.me/4915221342414?text=%2Fhello%20${user.referralCode}`,
+      referedUsers: await this.getReferedUsers(user),
     };
   }
 
@@ -162,6 +165,21 @@ class UserService {
       console.error("Error handling PayPal webhook:", error);
       throw error;
     }
+  }
+
+  //required
+  async getReferralCode(user) {
+    return user.referralCode;
+  }
+
+  //required
+  async setReferralCode(user, referralCode) {
+    user.referralCode = referralCode;
+    await user.save();
+  }
+  //required
+  async getReferedUsers(user) {
+    return User.find({ referralCode: user.referralCode });
   }
 }
 
