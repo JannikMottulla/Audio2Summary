@@ -155,10 +155,7 @@ class TranscriptionService {
 
       if (mode === "summary") {
         // Get the summary
-        const summaryResult = await this.summarizeText(
-          transcription,
-          detailLevel
-        );
+        const summaryResult = await this.summarizeText(transcription);
         return `📝 *Voice Message Summary*\n\n${summaryResult.summary}`;
       } else {
         return `📝 *Voice Message Transcription*\n\n${transcription}`;

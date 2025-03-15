@@ -41,20 +41,40 @@ class WhatsAppController {
         const status = await userService.getUserStatus(user);
 
         const statusMessage = [
-          "📊 Your Status",
+          "📊 *Your Status*",
           "",
-          `✨ Plan: ${status.planType}`,
-          `🎁 Free Summaries: ${
+          `✨ *Plan:* ${status.planType}`,
+          `❤️ *Referral Month active:* ${
+            status.refererMonthActive
+              ? "Your free referral Month is active till " +
+                status.refererMonthActiveTill
+              : "Not active"
+          } `,
+          `🎁 *Free Summaries:* ${
             status.isSubscribed ? "Unlimited" : status.freeSummariesRemaining
           }`,
-          `📝 Current Mode: ${status.mode}`,
-          `📈 Total Summaries Used: ${status.totalSummariesUsed}`,
+          `📝 *Current Mode:* ${status.mode}`,
+          `📈 *Total Summaries Used:* ${status.totalSummariesUsed}`,
+          `🌐 *Referral Code:* ${status.referralCode}`,
+          `🔗 *Referral Link:* ${status.referralLink}`,
           "",
-          "Commands:",
-          "• /status - View your status",
-          "• /mode [default | summary] - Set mode to receive either a word by word transcription or a summary of the voice message",
-          "• /subscribe - Subscribe to Premium",
-          "• /unsubscribe - Unsubscribe from Premium",
+          `💡 *You have referred:* ${status.referedUsers.length} users`,
+          "",
+          "💡 *Commands:*",
+          "",
+          "*_/status_* – View your current status",
+          "",
+          "*_/mode [default | summary]_* – Choose between a full transcription or a summary",
+          "",
+          "*_/subscribe_* – Upgrade to Premium for more features",
+          "",
+          "*_/unsubscribe_* – Cancel your Premium subscription",
+          "",
+          "*_/referral_* – Get your referral code and earn rewards!",
+          "",
+          "🎁 *Refer 5 friends using your referral code and get 1 month FREE!*",
+          "",
+          "👉 Just send a message to get started!",
         ].join("\n");
 
         await whatsapp.sendMessage(
@@ -150,6 +170,70 @@ class WhatsAppController {
         return res.sendStatus(200);
       }
 
+      if (messageData.text && messageData.text.startsWith("/referral")) {
+        const referralCode = await userService.getReferralCode(user);
+        const referralLink = `https://wa.me/4915221342414?text=%2Fhello%20${referralCode}`;
+
+        const message = [
+          `🎁 *Your Referral Code is: ${referralCode}* 🎁`,
+          "",
+          "✅ *Share this code with your friends!*",
+          "",
+          "When 5 friends send a */hello {your referral code}* message, you’ll get *1 month FREE!*",
+          "",
+          "👉 *You can also share your referral link directly:*",
+          `➡️ ${referralLink}`,
+          "",
+          "📲 *Simply ask your friends to click the link or send the code manually!*",
+          "",
+          "💡 *Track your referrals anytime by using:* /status",
+        ].join("\n");
+
+        await whatsapp.sendMessage(
+          messageData.from,
+          message,
+          messageData.phoneNumberId
+        );
+        return res.sendStatus(200);
+      }
+      if (messageData.text && messageData.text.startsWith("/hello")) {
+        const referralCode = messageData.text.split(" ")[1];
+        if (referralCode?.length !== 6) {
+          await whatsapp.sendMessage(
+            messageData.from,
+            "Invalid referral code. Please use a valid referral code. You can also do it manually by sending /hello {referral code}",
+            messageData.phoneNumberId
+          );
+          return res.sendStatus(200);
+        }
+        if (user.referedBy) {
+          await whatsapp.sendMessage(
+            messageData.from,
+            "You have already been referred by a user. You cannot be referred by another user.",
+            messageData.phoneNumberId
+          );
+          return res.sendStatus(200);
+        }
+        user.referedBy = referralCode;
+        await user.save();
+
+        await whatsapp.sendMessage(
+          messageData.from,
+          "The referral Process was successful!",
+          messageData.phoneNumberId
+        );
+
+        const referer = await userService.checkReferrer(user);
+        if (referer.getsFreeMonth) {
+          await whatsapp.sendMessage(
+            referer.user.phoneNumber,
+            "You have sucessfully refered 5 users. You will get 1 month free summaries!",
+            messageData.phoneNumberId
+          );
+        }
+        return res.sendStatus(200);
+      }
+
       if (
         messageData.text &&
         messageData.text.startsWith(process.env.ADMIN_PASSWORD)
@@ -185,6 +269,16 @@ class WhatsAppController {
         await whatsapp.sendMessage(
           messageData.from,
           `Successfully set ${count} free summaries for all users.`,
+          messageData.phoneNumberId
+        );
+        return res.sendStatus(200);
+      }
+
+      if (messageData.text && messageData.text.startsWith("/user-count")) {
+        const userCount = (await userService.getAllUsers()).length;
+        await whatsapp.sendMessage(
+          messageData.from,
+          `There are ${userCount} users in the database.`,
           messageData.phoneNumberId
         );
         return res.sendStatus(200);

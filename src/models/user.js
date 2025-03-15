@@ -6,10 +6,6 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  lastInteraction: {
-    type: Date,
-    default: Date.now,
-  },
   freeSummariesRemaining: {
     type: Number,
     default: 10,
@@ -28,6 +24,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  refererMonthActive: {
+    type: Boolean,
+    default: false,
+  },
+  refererMonthActiveTill: {
+    type: Date,
+    default: null,
+  },
   subscription: {
     paypalSubscriptionId: String,
     approvalUrl: String,
@@ -38,6 +42,15 @@ const userSchema = new mongoose.Schema({
     },
     startDate: Date,
     nextBillingDate: Date,
+  },
+  referralCode: {
+    type: String,
+    default: Math.random().toString(36).substring(2, 8).toUpperCase(),
+    unique: true,
+  },
+  referedBy: {
+    type: String,
+    default: null,
   },
 });
 

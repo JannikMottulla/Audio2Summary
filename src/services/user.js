@@ -19,7 +19,11 @@ class UserService {
       lastInteraction: user.lastInteraction,
       isSubscribed: user.isSubscribed,
       planType: user.isSubscribed ? "🌟 Premium" : "Free Plan",
+      refererMonthActive: user.refererMonthActive,
       subscription: user.subscription,
+      referralCode: user.referralCode,
+      referralLink: `https://wa.me/4915221342414?text=%2Fhello%20${user.referralCode}`,
+      referedUsers: await this.getReferedUsers(user),
     };
   }
 
@@ -40,7 +44,7 @@ class UserService {
 
   //required
   async setMode(user, mode) {
-    if (!["default", "summmary"].includes(mode)) {
+    if (!["default", "summary"].includes(mode)) {
       throw new Error("Invalid detail level");
     }
     user.mode = mode;
@@ -162,6 +166,38 @@ class UserService {
       console.error("Error handling PayPal webhook:", error);
       throw error;
     }
+  }
+
+  //required
+  async getReferralCode(user) {
+    return user.referralCode;
+  }
+
+  //required
+  async getReferedUsers(user) {
+    return User.find({ referedBy: user.referralCode });
+  }
+
+  //required
+  async checkReferrer(user) {
+    const refererCode = user.referedBy;
+    const referedUsers = await User.find({ referedBy: refererCode });
+    if (referedUsers.length >= 5) {
+      const referer = await User.findOne({ referralCode: refererCode });
+      referer.set({
+        refererMonthActive: true,
+        nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      await referer.save();
+
+      return {
+        getsFreeMonth: true,
+        user: referer,
+      };
+    }
+    return {
+      getsFreeMonth: false,
+    };
   }
 }
 
