@@ -240,14 +240,29 @@ class WhatsAppController {
           );
         }
       } else {
+        const message = [
+          "🎙️ *Send a voice message, and I'll summarize it for you!*",
+          "",
+          "💡 *Commands:*",
+          "",
+          "*_/status_* – View your current status",
+          "",
+          "*_/mode [default | summary]_* – Choose between a full transcription or a summary",
+          "",
+          "*_/subscribe_* – Upgrade to Premium for more features",
+          "",
+          "*_/unsubscribe_* – Cancel your Premium subscription",
+          "",
+          "*_/referral_* – Get your referral code and earn rewards!",
+          "",
+          "🎁 *Refer 5 friends using your referral code and get 1 month FREE!*",
+          "",
+          "👉 Just send a message to get started!",
+        ].join("\n");
+
         await whatsapp.sendMessage(
           messageData.from,
-          "Please send a voice message for me to summarize, or use one of these commands:\n" +
-            "• /status - View your status \n" +
-            "• /mode [default | summary] - Set mode to receive either a word by word transcription or a summary of the voice message" +
-            "• /subscribe - Receive a subscription link \n" +
-            "• /unsubscribe - Cancel your subscription any time",
-
+          message,
           messageData.phoneNumberId
         );
       }
